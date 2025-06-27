@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Attendance System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #4A00E0, #8E2DE2);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .main-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            margin: 15px 0;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        button {
+            padding: 12px 20px;
+            background: #fff;
+            color: #4A00E0;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s, color 0.3s;
+            margin-top: 15px;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #4A00E0;
+            color: #fff;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        #video {
+            width: 100%;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 2px solid #fff;
+            display: none;
+        }
+
+        #msg {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #fff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #fff;
+            font-size: 14px;
+        }
+
+        th {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+<div class="main-container" id="home">
+    <h2>Welcome to Attendance System</h2>
+    <button onclick="showRegistration()">New Student Registration</button>
+    <button onclick="showAttendance()">Attendance Checking</button>
+    <button onclick="showAdmin()">Admin Panel</button>
+</div>
+
+<div class="main-container hidden" id="registration">
+    <h2>Student Registration</h2>
+    <form id="registerForm">
+        <input type="text" name="name" placeholder="Full Name" required>
+        <input type="text" name="roll_no" placeholder="Roll Number" required>
+        <button type="button" id="captureBtn">Capture & Register</button>
+    </form>
+    <video id="regVideo" autoplay></video>
+    <p id="regMsg"></p>
+    <button onclick="goHome()">Back</button>
+</div>
+
+<div class="main-container hidden" id="attendance">
+    <h2>Attendance Checking</h2>
+    <button type="button" id="startBtn">Start Attendance</button>
+    <video id="attVideo" autoplay></video>
+    <p id="attMsg"></p>
+    <button onclick="goHome()">Back</button>
+</div>
+
+<div class="main-container hidden" id="admin">
+    <h2>Admin Panel</h2>
+    <button onclick="loadAdminData()">Refresh Data</button>
+    <h3>Students</h3>
+    <table id="studentTable">
+        <thead><tr><th>Name</th><th>Roll No</th><th>Action</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    <h3>Attendance</h3>
+    <table id="attendanceTable">
+        <thead><tr><th>Name</th><th>Roll No</th><th>Timestamp</th><th>Action</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    <button onclick="goHome()">Back</button>
+</div>
+
+<script>
+function showRegistration() {
+    hideAll();
+    document.getElementById('registration').classList.remove('hidden');
+}
+
+function showAttendance() {
+    hideAll();
+    document.getElementById('attendance').classList.remove('hidden');
+}
+
+function showAdmin() {
+    hideAll();
+    document.getElementById('admin').classList.remove('hidden');
+    loadAdminData();
+}
+
+function goHome() {
+    stopStreams();
+    hideAll();
+    document.getElementById('home').classList.remove('hidden');
+}
+
+function hideAll() {
+    document.querySelectorAll('.main-container').forEach(e => e.classList.add('hidden'));
+}
+
+function stopStreams() {
+    document.querySelectorAll('video').forEach(v => {
+        if (v.srcObject) {
+            v.srcObject.getTracks().forEach(track => track.stop());
+            v.style.display = 'none';
+        }
+    });
+}
+
+const regVideo = document.getElementById('regVideo');
+const captureBtn = document.getElementById('captureBtn');
+const regMsg = document.getElementById('regMsg');
+let regStream = false;
+
+captureBtn.addEventListener('click', () => {
+    const name = document.querySelector('input[name="name"]').value.trim();
+    const rollNo = document.querySelector('input[name="roll_no"]').value.trim();
+
+    if (!name || !rollNo) {
+        regMsg.innerText = "Please enter both Name and Roll Number.";
+        return;
+    }
+
+    if (!regStream) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                regVideo.srcObject = stream;
+                regVideo.style.display = 'block';
+                captureBtn.textContent = "Take Photo & Register";
+                regStream = true;
+            })
+            .catch(err => alert('Error accessing webcam: ' + err));
+    } else {
+        const canvas = document.createElement('canvas');
+        canvas.width = regVideo.videoWidth;
+        canvas.height = regVideo.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(regVideo, 0, 0);
+
+        const image = canvas.toDataURL('image/jpeg', 0.7);
+
+        const formData = new FormData(document.getElementById('registerForm'));
+        formData.append('image', image);
+
+        fetch('/register', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            regMsg.innerText = data.message;
+            if (data.status === 'success') {
+                setTimeout(goHome, 2000);
+            }
+        })
+        .catch(err => regMsg.innerText = 'Error: ' + err.message);
+    }
+});
+
+const attVideo = document.getElementById('attVideo');
+const startBtn = document.getElementById('startBtn');
+const attMsg = document.getElementById('attMsg');
+let attStream = false;
+
+startBtn.addEventListener('click', () => {
+    if (!attStream) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                attVideo.srcObject = stream;
+                attVideo.style.display = 'block';
+                startBtn.textContent = "Scanning...";
+                attStream = true;
+
+                setTimeout(() => captureAndCheck(), 3000);
+            })
+            .catch(err => alert('Error accessing webcam: ' + err));
+    }
+});
+
+function captureAndCheck() {
+    const canvas = document.createElement('canvas');
+    canvas.width = attVideo.videoWidth;
+    canvas.height = attVideo.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(attVideo, 0, 0);
+
+    const image = canvas.toDataURL('image/jpeg', 0.7);
+
+    fetch('/mark_attendance', {
+        method: 'POST',
+        body: JSON.stringify({ image: image }),
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        attMsg.innerText = data.message;
+        startBtn.textContent = "Start Attendance";
+        stopStreams();
+        attStream = false;
+    })
+    .catch(err => attMsg.innerText = 'Error: ' + err.message);
+}
+
+function loadAdminData() {
+    fetch('/admin_data')
+        .then(res => res.json())
+        .then(data => {
+            const studentBody = document.querySelector('#studentTable tbody');
+            studentBody.innerHTML = '';
+            data.students.forEach(s => {
+                studentBody.innerHTML += `<tr><td>${s.name}</td><td>${s.roll_no}</td><td><button onclick="deleteStudent('${s.roll_no}')">Delete</button></td></tr>`;
+            });
+
+            const attendanceBody = document.querySelector('#attendanceTable tbody');
+            attendanceBody.innerHTML = '';
+            data.attendance.forEach(a => {
+                attendanceBody.innerHTML += `<tr><td>${a.name}</td><td>${a.roll_no}</td><td>${a.timestamp}</td><td><button onclick="deleteAttendance(${a.id})">Delete</button></td></tr>`;
+            });
+        });
+}
+
+function deleteStudent(rollNo) {
+    if (confirm("Delete student?")) {
+        fetch('/delete_student', {
+            method: 'POST',
+            body: JSON.stringify({ roll_no: rollNo }),
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(() => loadAdminData());
+    }
+}
+
+function deleteAttendance(id) {
+      if (confirm("Delete attendance record?")) {
+        fetch('/delete_attendance', {
+            method: 'POST',
+            body: JSON.stringify({ id: id }),
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(() => loadAdminData());
+    }
+}
+</script>
+</body>
+</html>
